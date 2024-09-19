@@ -83,3 +83,24 @@ def save():
     
     # Send the file as a download response
     return send_file(output, as_attachment=True, download_name='leads.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+# Main route to display the input form and results
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        location_name = request.form['location']
+        business_type = request.form['business_type']
+        
+        # Get coordinates from location name
+        lat, lon = get_coordinates(location_name)
+        if lat and lon:
+            # Get nearby businesses with the user-specified business type using text search
+            businesses = get_nearby_businesses_text(lat, lon, query=business_type)
+            return render_template('index.html', businesses=businesses, location=location_name)
+        else:
+            return render_template('index.html', error="Could not find location.")
+    return render_template('index.html')
+
+# Run the Flask app
+if __name__ == '__main__':
+    app.run(debug=True)
