@@ -1,15 +1,20 @@
-from flask import Flask, request, render_template, send_file,jsonify
+from flask import Flask, request, render_template, send_file, jsonify
 import time
 import pandas as pd
 from io import BytesIO
 import googlemaps
+import requests
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Google Maps API client
-api_key = 'YOUR_GMAPS_API_KEY_HERE'  # Replace with your actual Google API key
-gmaps = googlemaps.Client(key=api_key)
+maps_api_key = ''  # Replace with your actual Google API key
+gmaps = googlemaps.Client(key=maps_api_key)
+
+# Google Custom Search API key and Custom Search Engine ID
+CSE_API_KEY = ''  # Replace with your Custom Search API key
+CX = ''  # Replace with your Custom Search Engine ID
 
 # Function to convert location name to coordinates
 def get_coordinates(location_name):
@@ -66,6 +71,7 @@ def get_nearby_businesses_text(lat, lon, query, radius=50000):
 
     return businesses
 
+
 # Route to save businesses into Excel
 @app.route('/save', methods=['POST'])
 def save():
@@ -90,16 +96,56 @@ def index():
     if request.method == 'POST':
         location_name = request.form['location']
         business_type = request.form['business_type']
-        
+
         # Get coordinates from location name
         lat, lon = get_coordinates(location_name)
+        
+        businesses = []
+
         if lat and lon:
             # Get nearby businesses with the user-specified business type using text search
             businesses = get_nearby_businesses_text(lat, lon, query=business_type)
-            return render_template('index.html', businesses=businesses, location=location_name)
+            return render_template('index.html', businesses=businesses, location=location_name, business_type=business_type)
         else:
             return render_template('index.html', error="Could not find location.")
     return render_template('index.html')
+
+
+def fetch_seo_results(location, business_type, start_index=1):
+    # Construct the query using the provided location and business type
+    query = f"{business_type} in {location} contact details"
+    
+    # Construct the API URL
+    url = f'https://www.googleapis.com/customsearch/v1?q={query}&key={CSE_API_KEY}&cx={CX}&start={start_index}'
+    
+    # Make the request to the Google Custom Search API
+    response = requests.get(url)
+    
+    # Return the JSON response
+    return response.json()
+
+# SEO results route
+@app.route('/seo-results', methods=['POST'])
+def seo_results():
+    # Get the location and business type from the form data
+    location_name = request.form['location']
+    business_type = request.form['business_type']
+    
+    # Fetch SEO results related to the business type and location
+    seo_results_data = fetch_seo_results(location_name, business_type)
+    seo_results = []
+    
+    # Check if items exist in the result and populate the list
+    if 'items' in seo_results_data:
+        for item in seo_results_data['items']:
+            seo_results.append({
+                'title': item['title'],
+                'link': item['link'],
+                'snippet': item.get('snippet', '')
+            })
+    
+    # Render the SEO results template
+    return render_template('seo_results.html', seo_results=seo_results, location=location_name, business_type=business_type)
 
 # Run the Flask app
 if __name__ == '__main__':
