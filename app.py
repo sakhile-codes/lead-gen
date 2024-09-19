@@ -46,3 +46,22 @@ def get_business_details(place_id):
         'website': place_details['result'].get('website', 'N/A')
     }
     return details
+
+# Function to get nearby businesses using text search
+def get_nearby_businesses_text(lat, lon, query, radius=50000):
+    location = f"{lat},{lon}"
+    places_result = gmaps.places(query=query, location=location, radius=radius)
+    businesses = []
+
+    # Add the first page of results
+    businesses.extend(extract_businesses(places_result))
+
+    # Check if more pages of results exist and fetch them
+    while 'next_page_token' in places_result:
+        next_page_token = places_result['next_page_token']
+        # Google API requires a short delay before fetching the next page
+        time.sleep(2)
+        places_result = gmaps.places(query=query, location=location, radius=radius, page_token=next_page_token)
+        businesses.extend(extract_businesses(places_result))
+
+    return businesses
