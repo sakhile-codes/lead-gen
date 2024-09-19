@@ -65,3 +65,21 @@ def get_nearby_businesses_text(lat, lon, query, radius=50000):
         businesses.extend(extract_businesses(places_result))
 
     return businesses
+
+# Route to save businesses into Excel
+@app.route('/save', methods=['POST'])
+def save():
+    businesses = request.json.get('businesses')
+    
+    # Convert the list of businesses to a DataFrame
+    df = pd.DataFrame(businesses)
+
+    # Save the DataFrame to an Excel file in memory
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Leads')
+    
+    output.seek(0)  # Move cursor to the beginning of the file
+    
+    # Send the file as a download response
+    return send_file(output, as_attachment=True, download_name='leads.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
